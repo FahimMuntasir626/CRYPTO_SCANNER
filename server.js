@@ -433,12 +433,27 @@ app.get('/api/chart/:symbol', async (req, res) => {
       fetchKlines(symbol, '15m', 500)
     ]);
 
-    const { signals, ema50_15m, ema50_1h } = generateSignals(data1h, data15m);
+    const { signals } = generateSignals(data1h, data15m);
+    const ema50_1h = calculateEMA(data1h, 50);
+
+    // Map 1H EMA 50 onto 15m candles
+    const ema50On15m = [];
+    for (let i = 0; i < data15m.length; i++) {
+      const candleHour = Math.floor(data15m[i].time / 3600000) * 3600000;
+      let emaVal = null;
+      for (let h = data1h.length - 1; h >= 0; h--) {
+        if (data1h[h].time <= candleHour && ema50_1h[h]) {
+          emaVal = ema50_1h[h];
+          break;
+        }
+      }
+      ema50On15m[i] = emaVal;
+    }
 
     res.json({
       success: true,
       candles: data15m,
-      ema50: ema50_15m,
+      ema50: ema50On15m,
       signals
     });
   } catch (error) {
