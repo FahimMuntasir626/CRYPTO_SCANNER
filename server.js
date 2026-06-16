@@ -74,8 +74,9 @@ async function fetchKlines(symbol, interval, limit = 1000) {
     endAt = startAt - 1;
     remaining -= batchSize;
   }
-  // Sort chronologically
+  // Sort chronologically and deduplicate
   allData.sort((a, b) => a.time - b.time);
+  allData = allData.filter((item, idx) => idx === 0 || item.time !== allData[idx - 1].time);
   return allData;
 }
 

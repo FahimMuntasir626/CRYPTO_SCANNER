@@ -1210,10 +1210,10 @@
         <div class="chart-header">
           <h3>15m Chart with Indicators</h3>
           <div class="chart-pair-select" id="chart-pairs">
-            <button class="pair-btn active" onclick="loadChart('BTCUSDT')">BTC</button>
-            <button class="pair-btn" onclick="loadChart('ETHUSDT')">ETH</button>
-            <button class="pair-btn" onclick="loadChart('XRPUSDT')">XRP</button>
-            <button class="pair-btn" onclick="loadChart('LINKUSDT')">LINK</button>
+            <button class="pair-btn active" onclick="loadChart('BTC-USDT')">BTC</button>
+            <button class="pair-btn" onclick="loadChart('ETH-USDT')">ETH</button>
+            <button class="pair-btn" onclick="loadChart('XRP-USDT')">XRP</button>
+            <button class="pair-btn" onclick="loadChart('LINK-USDT')">LINK</button>
           </div>
         </div>
         <div id="chart"></div>
@@ -1257,7 +1257,7 @@
       else if (tab === 'signals') document.getElementById('signals-section').classList.add('active');
       else if (tab === 'chart') {
         document.getElementById('chart-section').classList.add('active');
-        setTimeout(() => loadChart('BTCUSDT'), 100);
+        setTimeout(() => loadChart('BTC-USDT'), 100);
       }
       else if (tab === 'backtest') document.getElementById('backtest-section').classList.add('active');
     }
@@ -1292,7 +1292,7 @@
               <div class="coin-info">
                 <div class="coin-icon ${icon.class}">${icon.label}</div>
                 <div class="coin-name">
-                  <h3>${coin.symbol.replace('USDT', '/USDT')}</h3>
+                  <h3>${coin.symbol.replace('-USDT', '/USDT')}</h3>
                   <p>15m • EMA 50 Crossover</p>
                 </div>
               </div>
@@ -1384,7 +1384,7 @@
         return `
           <tr>
             <td><div class="rank-badge ${rankClass}">${i + 1}</div></td>
-            <td><strong>${coin.symbol.replace('USDT', '/USDT')}</strong></td>
+            <td><strong>${coin.symbol.replace('-USDT', '/USDT')}</strong></td>
             <td>$${formatPrice(coin.price)}</td>
             <td><span class="price-change ${priceChangeClass}">${coin.priceChange24h}%</span></td>
             <td>$${coin.quoteVolume24h}M</td>
@@ -1415,7 +1415,7 @@
           <div class="backtest-card fade-in">
             <h4>
               <div class="coin-icon ${icon.class}" style="width:28px;height:28px;font-size:11px;">${icon.label}</div>
-              ${coin.symbol.replace('USDT', '/USDT')} Backtest
+              ${coin.symbol.replace('-USDT', '/USDT')} Backtest
             </h4>
             <div class="backtest-stats">
               <div class="stat">
@@ -1495,7 +1495,7 @@
     async function loadChart(symbol) {
       document.querySelectorAll('.pair-btn').forEach(b => b.classList.remove('active'));
       document.querySelectorAll('.pair-btn').forEach(b => {
-        if (b.textContent === symbol.replace('USDT', '')) b.classList.add('active');
+        if (b.textContent === symbol.replace('-USDT', '')) b.classList.add('active');
       });
 
       const chartEl = document.getElementById('chart');
@@ -1734,7 +1734,7 @@
           <tbody>
             ${positions.map(p => `
               <tr>
-                <td style="font-weight:600;">${p.symbol.replace('USDT', '/USDT')}</td>
+                <td style="font-weight:600;">${p.symbol.replace('-USDT', '/USDT')}</td>
                 <td><span style="padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;background:${p.type === 'LONG' ? 'rgba(0,212,170,0.12)' : 'rgba(255,71,87,0.12)'};color:${p.type === 'LONG' ? 'var(--accent)' : 'var(--danger)'};">${p.type}</span></td>
                 <td>$${formatPrice(p.entry)}</td>
                 <td style="font-weight:600;">$${formatPrice(p.currentPrice)}</td>
@@ -1777,7 +1777,7 @@
             ${allTrades.map((t, i) => `
               <tr>
                 <td style="color:var(--text-muted);">${i + 1}</td>
-                <td style="font-weight:600;">${t.symbol.replace('USDT', '')}</td>
+                <td style="font-weight:600;">${t.symbol.replace('-USDT', '')}</td>
                 <td style="color:${t.type === 'LONG' ? 'var(--accent)' : 'var(--danger)'};">${t.type}</td>
                 <td>$${formatPrice(t.entry)}</td>
                 <td>$${formatPrice(t.exit)}</td>
@@ -1804,7 +1804,7 @@
       el.innerHTML = allTrades.map(t => `
         <div class="tr-record-item">
           <div>
-            <div class="rec-pair">${t.symbol.replace('USDT', '/USDT')} <span style="font-size:11px;color:${t.type === 'LONG' ? 'var(--accent)' : 'var(--danger)'};">${t.type}</span></div>
+            <div class="rec-pair">${t.symbol.replace('-USDT', '/USDT')} <span style="font-size:11px;color:${t.type === 'LONG' ? 'var(--accent)' : 'var(--danger)'};">${t.type}</span></div>
             <div class="rec-info">${new Date(t.exitTime).toLocaleString()} • ${t.result === 'TP' ? 'Take Profit' : 'Stop Loss'}</div>
           </div>
           <div class="rec-pnl" style="color:${t.result === 'TP' ? 'var(--accent)' : 'var(--danger)'};">${t.result === 'TP' ? '+3%' : '-1%'}</div>
@@ -1925,7 +1925,7 @@
             <div style="display:flex;align-items:center;gap:10px;">
               <span style="font-size:12px;color:var(--text-muted);width:20px;">${i + 1}</span>
               <div>
-                <div style="font-weight:600;font-size:14px;">${coin.symbol.replace('USDT', '')}</div>
+                <div style="font-weight:600;font-size:14px;">${coin.symbol.replace('-USDT', '')}</div>
                 <div style="font-size:11px;color:var(--text-muted);">Vol: $${(coin.volume24h / 1000000).toFixed(1)}M</div>
               </div>
             </div>
@@ -1942,7 +1942,7 @@
             <div style="display:flex;align-items:center;gap:10px;">
               <span style="font-size:12px;color:var(--text-muted);width:20px;">${i + 1}</span>
               <div>
-                <div style="font-weight:600;font-size:14px;">${coin.symbol.replace('USDT', '')}</div>
+                <div style="font-weight:600;font-size:14px;">${coin.symbol.replace('-USDT', '')}</div>
                 <div style="font-size:11px;color:var(--text-muted);">Vol: $${(coin.volume24h / 1000000).toFixed(1)}M</div>
               </div>
             </div>
@@ -1961,7 +1961,7 @@
               <div style="padding:16px;background:var(--bg-secondary);border:1px solid ${coin.direction === 'BUY' ? 'rgba(0,212,170,0.2)' : 'rgba(255,71,87,0.2)'};border-radius:12px;">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
                   <div>
-                    <span style="font-size:16px;font-weight:700;">${coin.symbol.replace('USDT', '/USDT')}</span>
+                    <span style="font-size:16px;font-weight:700;">${coin.symbol.replace('-USDT', '/USDT')}</span>
                     <span style="margin-left:8px;font-size:11px;padding:3px 8px;border-radius:10px;background:${coin.priceChange > 0 ? 'rgba(0,212,170,0.1)' : 'rgba(255,71,87,0.1)'};color:${coin.priceChange > 0 ? 'var(--accent)' : 'var(--danger)'};">${coin.priceChange > 0 ? '+' : ''}${coin.priceChange.toFixed(2)}%</span>
                   </div>
                   <span style="font-size:12px;padding:4px 10px;border-radius:10px;font-weight:700;background:${coin.direction === 'BUY' ? 'rgba(0,212,170,0.15)' : 'rgba(255,71,87,0.15)'};color:${coin.direction === 'BUY' ? 'var(--accent)' : 'var(--danger)'};">${coin.direction === 'BUY' ? '▲ LONG' : '▼ SHORT'}</span>
