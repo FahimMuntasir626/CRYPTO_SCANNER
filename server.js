@@ -8,59 +8,90 @@ const PORT = process.env.PORT || 3000;
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
-const PAIRS = ['BTCUSDT', 'ETHUSDT', 'XRPUSDT', 'LINKUSDT'];
+const PAIRS = ['BTC-USDT', 'ETH-USDT', 'XRP-USDT', 'LINK-USDT'];
+
+// KuCoin interval mapping
+const KUCOIN_INTERVALS = {
+  '1h': '1hour',
+  '15m': '15min',
+  '4h': '4hour',
+  '1d': '1day'
+};
 
 async function fetchKlines(symbol, interval, limit = 1000) {
-  if (limit <= 1000) {
-    const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
+  const kucoinInterval = KUCOIN_INTERVALS[interval] || interval;
+  const maxPerRequest = 1500;
+
+  if (limit <= maxPerRequest) {
+    const endAt = Math.floor(Date.now() / 1000);
+    const intervalSeconds = interval === '1h' ? 3600 : interval === '15m' ? 900 : interval === '4h' ? 14400 : 86400;
+    const startAt = endAt - (limit * intervalSeconds);
+    const url = `https://api.kucoin.com/api/v1/market/candles?type=${kucoinInterval}&symbol=${symbol}&startAt=${startAt}&endAt=${endAt}`;
     const res = await fetch(url);
-    const data = await res.json();
-    return data.map(k => ({
-      time: k[0],
+    const json = await res.json();
+    const data = json.data || [];
+    // KuCoin returns newest first, reverse to get chronological order
+    // KuCoin kline format: [time, open, close, high, low, volume, turnover]
+    return data.reverse().map(k => ({
+      time: parseInt(k[0]) * 1000,
       open: parseFloat(k[1]),
-      high: parseFloat(k[2]),
-      low: parseFloat(k[3]),
-      close: parseFloat(k[4]),
+      high: parseFloat(k[3]),
+      low: parseFloat(k[4]),
+      close: parseFloat(k[2]),
       volume: parseFloat(k[5]),
-      closeTime: k[6],
-      quoteVolume: parseFloat(k[7]),
-      trades: k[8]
+      closeTime: (parseInt(k[0]) + (intervalSeconds)) * 1000,
+      quoteVolume: parseFloat(k[6]),
+      trades: 0
     }));
   }
 
   // Fetch in batches for larger requests
   let allData = [];
-  let endTime = Date.now();
+  let endAt = Math.floor(Date.now() / 1000);
   let remaining = limit;
+  const intervalSeconds = interval === '1h' ? 3600 : interval === '15m' ? 900 : interval === '4h' ? 14400 : 86400;
 
   while (remaining > 0) {
-    const batchSize = Math.min(remaining, 1000);
-    const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${batchSize}&endTime=${endTime}`;
+    const batchSize = Math.min(remaining, maxPerRequest);
+    const startAt = endAt - (batchSize * intervalSeconds);
+    const url = `https://api.kucoin.com/api/v1/market/candles?type=${kucoinInterval}&symbol=${symbol}&startAt=${startAt}&endAt=${endAt}`;
     const res = await fetch(url);
-    const data = await res.json();
+    const json = await res.json();
+    const data = json.data || [];
     if (!data.length) break;
-    const parsed = data.map(k => ({
-      time: k[0],
+    const parsed = data.reverse().map(k => ({
+      time: parseInt(k[0]) * 1000,
       open: parseFloat(k[1]),
-      high: parseFloat(k[2]),
-      low: parseFloat(k[3]),
-      close: parseFloat(k[4]),
+      high: parseFloat(k[3]),
+      low: parseFloat(k[4]),
+      close: parseFloat(k[2]),
       volume: parseFloat(k[5]),
-      closeTime: k[6],
-      quoteVolume: parseFloat(k[7]),
-      trades: k[8]
+      closeTime: (parseInt(k[0]) + intervalSeconds) * 1000,
+      quoteVolume: parseFloat(k[6]),
+      trades: 0
     }));
     allData = parsed.concat(allData);
-    endTime = data[0][0] - 1;
+    endAt = startAt - 1;
     remaining -= batchSize;
   }
+  // Sort chronologically
+  allData.sort((a, b) => a.time - b.time);
   return allData;
 }
 
 async function fetch24hTicker(symbol) {
-  const url = `https://api.binance.com/api/v3/ticker/24hr?symbol=${symbol}`;
+  const url = `https://api.kucoin.com/api/v1/market/stats?symbol=${symbol}`;
   const res = await fetch(url);
-  return res.json();
+  const json = await res.json();
+  const d = json.data || {};
+  return {
+    priceChangePercent: d.changeRate ? (parseFloat(d.changeRate) * 100).toString() : '0',
+    quoteVolume: d.volValue || '0',
+    lastPrice: d.last || '0',
+    highPrice: d.high || '0',
+    lowPrice: d.low || '0',
+    count: d.makerCoefficient || '0'
+  };
 }
 
 function calculateEMA(data, period) {
@@ -416,21 +447,22 @@ app.get('/api/chart/:symbol', async (req, res) => {
 
 app.get('/api/gainers-losers', async (req, res) => {
   try {
-    // Fetch all USDT tickers
-    const tickerRes = await fetch('https://api.binance.com/api/v3/ticker/24hr');
-    const allTickers = await tickerRes.json();
+    // Fetch all tickers from KuCoin
+    const tickerRes = await fetch('https://api.kucoin.com/api/v1/market/allTickers');
+    const tickerJson = await tickerRes.json();
+    const allTickers = (tickerJson.data && tickerJson.data.ticker) || [];
 
     // Filter USDT pairs with good volume
     const usdtPairs = allTickers
-      .filter(t => t.symbol.endsWith('USDT') && parseFloat(t.quoteVolume) > 10000000)
+      .filter(t => t.symbol.endsWith('-USDT') && parseFloat(t.volValue || 0) > 10000000)
       .map(t => ({
         symbol: t.symbol,
-        price: parseFloat(t.lastPrice),
-        priceChange: parseFloat(t.priceChangePercent),
-        volume24h: parseFloat(t.quoteVolume),
-        high24h: parseFloat(t.highPrice),
-        low24h: parseFloat(t.lowPrice),
-        trades: parseInt(t.count)
+        price: parseFloat(t.last || 0),
+        priceChange: parseFloat(t.changeRate || 0) * 100,
+        volume24h: parseFloat(t.volValue || 0),
+        high24h: parseFloat(t.high || 0),
+        low24h: parseFloat(t.low || 0),
+        trades: 0
       }));
 
     // Top gainers
@@ -641,12 +673,13 @@ app.get('/api/results2', async (req, res) => {
     const d7 = now - 7 * 24 * 60 * 60 * 1000;
     const d30 = now - 30 * 24 * 60 * 60 * 1000;
 
-    // Fetch top gainers and losers
-    const tickerRes = await fetch('https://api.binance.com/api/v3/ticker/24hr');
-    const allTickers = await tickerRes.json();
+    // Fetch top gainers and losers from KuCoin
+    const tickerRes = await fetch('https://api.kucoin.com/api/v1/market/allTickers');
+    const tickerJson = await tickerRes.json();
+    const allTickers = (tickerJson.data && tickerJson.data.ticker) || [];
     const usdtPairs = allTickers
-      .filter(t => t.symbol.endsWith('USDT') && parseFloat(t.quoteVolume) > 50000000)
-      .map(t => ({ symbol: t.symbol, priceChange: parseFloat(t.priceChangePercent), volume: parseFloat(t.quoteVolume) }));
+      .filter(t => t.symbol.endsWith('-USDT') && parseFloat(t.volValue || 0) > 50000000)
+      .map(t => ({ symbol: t.symbol, priceChange: parseFloat(t.changeRate || 0) * 100, volume: parseFloat(t.volValue || 0) }));
 
     const topGainers = [...usdtPairs].sort((a, b) => b.priceChange - a.priceChange).slice(0, 5);
     const topLosers = [...usdtPairs].sort((a, b) => a.priceChange - b.priceChange).slice(0, 5);
