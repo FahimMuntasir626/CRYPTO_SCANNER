@@ -220,14 +220,16 @@ function generateSignals(data1h, data15m) {
     const hourAbove = currentHourData.above;
 
     // BUY: 1H closed above EMA 50 AND 15m candle closes above 1H EMA (confirmed)
+    // Entry is fixed at the 1H EMA 50 value (stable reference point)
     if (hourAbove && currClose > ema1h && lastSignalType !== 'BUY' && (i - lastSignalTime) >= minGapCandles) {
-      signals.push({ index: i, type: 'BUY', price: currClose, time: data15m[i].time });
+      signals.push({ index: i, type: 'BUY', price: ema1h, time: data15m[i].time });
       lastSignalType = 'BUY';
       lastSignalTime = i;
     }
     // SELL: 1H closed below EMA 50 AND 15m candle closes below 1H EMA (confirmed)
+    // Entry is fixed at the 1H EMA 50 value (stable reference point)
     if (!hourAbove && currClose < ema1h && lastSignalType !== 'SELL' && (i - lastSignalTime) >= minGapCandles) {
-      signals.push({ index: i, type: 'SELL', price: currClose, time: data15m[i].time });
+      signals.push({ index: i, type: 'SELL', price: ema1h, time: data15m[i].time });
       lastSignalType = 'SELL';
       lastSignalTime = i;
     }
@@ -515,12 +517,12 @@ app.get('/api/gainers-losers', async (req, res) => {
 
         if (trend === 'BULLISH' && priceAboveEma) {
           direction = 'BUY';
-          entry = data15m[lastIdx15m].close;
+          entry = ema1hVal;
           sl = entry * (1 - 0.01);
           tp = entry * (1 + 0.03);
         } else if (trend === 'BEARISH' && !priceAboveEma) {
           direction = 'SELL';
-          entry = data15m[lastIdx15m].close;
+          entry = ema1hVal;
           sl = entry * (1 + 0.01);
           tp = entry * (1 - 0.03);
         }
